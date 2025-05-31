@@ -1,42 +1,33 @@
 #!/usr/bin/env python3
-""" GithubOrgClient module """
+"""GithubOrgClient module"""
 
 import requests
-from typing import List, Dict
-from utils import memoize
+from utils import get_json
 
 
 class GithubOrgClient:
-    """A client for GitHub organization data"""
+    """GitHub Organization Client"""
+
     ORG_URL = "https://api.github.com/orgs/{org}"
 
-    def __init__(self, org_name: str):
-        """Initialize with organization name"""
-        self.org_name = org_name
-
-    @memoize
-    def org(self) -> Dict:
-        """Fetch organization information from GitHub"""
-        url = self.ORG_URL.format(org=self.org_name)
-        return requests.get(url).json()
+    def __init__(self, org):
+        self.org_name = org
 
     @property
-    def _public_repos_url(self) -> str:
-        """Get the URL for public repos"""
-        return self.org.get("repos_url")
+    def org(self):
+        """Get organization data"""
+        return get_json(self.ORG_URL.format(org=self.org_name))
 
-    @memoize
-    def repos_payload(self) -> List[Dict]:
-        """Get the list of repos from the public repos URL"""
-        return requests.get(self._public_repos_url).json()
+    @property
+    def _public_repos_url(self):
+        """Get public repos URL"""
+        return self.org["repos_url"]
 
-    def public_repos(self, license: str = None) -> List[str]:
-        """Get public repository names filtered by license if provided"""
-        repos = self.repos_payload
-        if license is None:
-            return [repo["name"] for repo in repos]
-        return [
-            repo["name"]
-            for repo in repos
-            if repo.get("license") and repo["license"].get("key") == license
+    def public_repos(self, license=None):
+        """Get list of public repos"""
+        repos = get_json(self._public_repos_url)
+        repo_names = [
+            repo["name"] for repo in repos
+            if license is None or repo.get("license", {}).get("key") == license
         ]
+        return repo_names
