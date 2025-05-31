@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Fixtures for integration tests"""
+"""Fixtures module"""
 
-TEST_PAYLOAD = [
-    (
-        {"login": "google"},
-        [
-            {"name": "repo1", "license": {"key": "apache-2.0"}},
-            {"name": "repo2", "license": {"key": "mit"}},
-            {"name": "repo3", "license": {"key": "apache-2.0"}}
-        ],
-        ["repo1", "repo2", "repo3"],
-        ["repo1", "repo3"]
-    )
+org_payload = {"repos_url": "https://api.github.com/orgs/test-org/repos"}
+
+repos_payload = [
+    {"name": "repo1", "license": {"key": "apache-2.0"}},
+    {"name": "repo2", "license": {"key": "mit"}},
+    {"name": "repo3", "license": {"key": "apache-2.0"}},
 ]
+
+expected_repos = ["repo1", "repo2", "repo3"]
+apache2_repos = ["repo1", "repo3"]
