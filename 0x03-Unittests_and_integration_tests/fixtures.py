@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
-"""Fixtures for testing"""
+"""Test fixtures for GithubOrgClient"""
 
 TEST_PAYLOAD = {
-    "repos": [
+    "org_payload": {
+        "login": "google",
+        "id": 1,
+        "repos_url": "https://api.github.com/orgs/google/repos"
+    },
+    "repos_payload": [
         {
             "id": 1,
-            "name": "dagger",
-            "license": {"key": "apache-2.0"}
+            "name": "repo1",
+            "license": {
+                "key": "apache-2.0"
+            }
         },
         {
             "id": 2,
-            "name": "flatbuffers",
-            "license": {"key": "mit"}
-        },
-        {
-            "id": 3,
-            "name": "volley",
-            "license": {"key": "bsd-3-clause"}
+            "name": "repo2",
+            "license": {
+                "key": "other"
+            }
         }
-    ]
+    ],
+    "expected_repos": ["repo1", "repo2"],
+    "apache2_repos": ["repo1"]
 }
