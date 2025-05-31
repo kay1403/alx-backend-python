@@ -1,42 +1,39 @@
 #!/usr/bin/env python3
-"""Client module for GithubOrgClient"""
-
-from typing import List, Dict
-from utils import get_json
-from functools import cached_property
+"""GithubOrgClient module"""
+import requests
+from typing import Dict, List
+from utils import memoize
 
 
 class GithubOrgClient:
     """GithubOrgClient class"""
 
-    ORG_URL = "https://api.github.com/orgs/{}"
+    ORG_URL = "https://api.github.com/orgs/{org}"
 
-    def __init__(self, org_name: str) -> None:
-        """Initialize with org name"""
+    def __init__(self, org_name):
+        """Constructor"""
         self._org_name = org_name
 
-    @cached_property
+    @memoize
     def org(self) -> Dict:
-        """Return organization info"""
-        return get_json(self.ORG_URL.format(self._org_name))
+        """Fetch and memoize the organization information from GitHub."""
+        return requests.get(self.ORG_URL.format(org=self._org_name)).json()
 
-    @cached_property
+    @property
     def _public_repos_url(self) -> str:
-        """Return repos URL"""
+        """Get public repositories URL from org"""
         return self.org["repos_url"]
 
-    def public_repos(self, license: str = None) -> List[str]:
-        """Return public repos, optionally filtered by license"""
-        repos = get_json(self._public_repos_url)
-        repo_names = []
-
-        for repo in repos:
-            if license is None or self.has_license(repo, license):
-                repo_names.append(repo["name"])
+    def public_repos(self, license=None) -> List[str]:
+        """List public repos optionally filtered by license"""
+        repos = requests.get(self._public_repos_url).json()
+        repo_names = [
+            repo["name"] for repo in repos
+            if not license or self.has_license(repo, license)
+        ]
         return repo_names
 
     @staticmethod
     def has_license(repo: Dict, license_key: str) -> bool:
         """Check if repo has a specific license"""
-        license_info = repo.get("license")
-        return license_info is not None and license_info.get("key") == license_key
+        return repo.get("license", {}).get("key") == license_key
