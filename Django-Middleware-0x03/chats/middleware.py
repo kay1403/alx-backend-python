@@ -1,19 +1,7 @@
-import logging
-import os
+# chats/middleware.py
+from datetime import datetime, timedelta
+from django.http import HttpResponseForbidden
 import time
-from datetime import datetime
-from collections import defaultdict
-from django.http import HttpResponseForbidden, JsonResponse
-
-# === MIDDLEWARE 1: Logging User Requests ===
-
-# Configure logger to write into requests.log
-log_file_path = os.path.join(os.path.dirname(__file__), '..', 'requests.log')
-logging.basicConfig(
-    filename=log_file_path,
-    level=logging.INFO,
-    format='%(asctime)s - %(message)s',
-)
 
 class RequestLoggingMiddleware:
     def __init__(self, get_response):
@@ -21,58 +9,42 @@ class RequestLoggingMiddleware:
 
     def __call__(self, request):
         user = request.user if request.user.is_authenticated else 'Anonymous'
-        path = request.path
-        logging.info(f"User: {user} - Path: {path}")
+        with open('requests.log', 'a') as f:
+            f.write(f"{datetime.now()} - User: {user} - Path: {request.path}\n")
         return self.get_response(request)
-
-
-# === MIDDLEWARE 2: Restrict Access By Time ===
 
 class RestrictAccessByTimeMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        now = datetime.now().time()
-        if now.hour < 18 or now.hour >= 21:  # Outside 6PM to 9PM
-            return HttpResponseForbidden("Chat access is restricted to 6PM - 9PM only.")
+        current_hour = datetime.now().hour
+        if current_hour < 18 or current_hour > 21:
+            return HttpResponseForbidden("Access allowed only between 6PM and 9PM.")
         return self.get_response(request)
-
-
-# === MIDDLEWARE 3: Offensive Language / Rate Limiting ===
 
 class OffensiveLanguageMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
-        self.ip_messages = defaultdict(list)
-        self.limit = 5  # max messages per window
-        self.window_seconds = 60  # 1 minute window
+        self.request_log = {}
 
     def __call__(self, request):
-        if request.method == "POST" and request.path.startswith("/chat/"):
-            ip = request.META.get('REMOTE_ADDR')
-            now = time.time()
-            # Keep only recent timestamps
-            self.ip_messages[ip] = [t for t in self.ip_messages[ip] if now - t < self.window_seconds]
-            if len(self.ip_messages[ip]) >= self.limit:
-                return JsonResponse({"error": "Rate limit exceeded. Try again later."}, status=429)
-            self.ip_messages[ip].append(now)
+        ip = request.META.get('REMOTE_ADDR')
+        now = time.time()
+        self.request_log.setdefault(ip, []).append(now)
+        # Keep only messages from the last 60 seconds
+        self.request_log[ip] = [t for t in self.request_log[ip] if now - t < 60]
+        if request.method == 'POST' and len(self.request_log[ip]) > 5:
+            return HttpResponseForbidden("Too many messages sent.")
         return self.get_response(request)
-
-
-# === MIDDLEWARE 4: Role Permission Check ===
 
 class RolepermissionMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.path.startswith("/chat/") and request.method in ["POST", "DELETE"]:
-            user = request.user
-            if not user.is_authenticated:
-                return HttpResponseForbidden("Authentication required.")
-            # Check role
-            role = getattr(user, 'role', None)
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            role = getattr(request.user, 'role', 'user')
             if role not in ['admin', 'moderator']:
-                return HttpResponseForbidden("You do not have permission to perform this action.")
+                return HttpResponseForbidden("Insufficient role permissions.")
         return self.get_response(request)
