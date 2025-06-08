@@ -3,20 +3,24 @@ from .models import Conversation, Message
 
 class IsParticipantOfConversation(permissions.BasePermission):
     """
-    Permission personnalisée : seuls les participants d'une conversation
-    peuvent accéder ou modifier les messages ou conversations liés.
+    Custom permission to allow only participants of a conversation
+    to send, view, update, and delete messages.
     """
 
     def has_permission(self, request, view):
-        if view.basename == 'conversation':
-            return request.user and request.user.is_authenticated
-        return True
+        # Authorize list/create for authenticated users
+        if request.user and request.user.is_authenticated:
+            return True
+        return False
 
     def has_object_permission(self, request, view, obj):
+        # Accessing a Conversation
         if isinstance(obj, Conversation):
             return request.user in obj.participants.all()
 
+        # Accessing a Message
         if isinstance(obj, Message):
-            return request.user in obj.conversation.participants.all()
+            if request.method in ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']:
+                return request.user in obj.conversation.participants.all()
 
         return False
