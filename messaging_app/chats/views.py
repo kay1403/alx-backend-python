@@ -1,43 +1,37 @@
 from rest_framework import viewsets, status, filters
-from rest_framework.request import Request
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .pagination import MessagePagination
+from .permissions import IsParticipantOfConversation
 
 
-class ConversationViewSet(viewsets.ViewSet):
-    search_filter = filters.SearchFilter()
-
-    def list(self, request: Request):
-        queryset = Conversation.objects.all()
-        queryset = self.search_filter.filter_queryset(request, queryset, self)
-        serializer = ConversationSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = ConversationSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class ConversationViewSet(viewsets.ModelViewSet):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    filter_backends = [filters.SearchFilter]
 
 
-class MessageViewSet(viewsets.ViewSet):
-    ordering_filter = filters.OrderingFilter()
+class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    pagination_class = MessagePagination
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    filter_backends = [filters.OrderingFilter]
 
-    def list(self, request):
-        queryset = Message.objects.all()
-        queryset = self.ordering_filter.filter_queryset(request, queryset, self)
+    def get_queryset(self):
+        conversation_id = self.request.query_params.get('conversation_id')
+        if not conversation_id:
+            return Message.objects.none()
 
-        paginator = MessagePagination()
-        paginated_qs = paginator.paginate_queryset(queryset, request)
-        serializer = MessageSerializer(paginated_qs, many=True)
-        return paginator.get_paginated_response(serializer.data)
+        try:
+            conversation = Conversation.objects.get(id=conversation_id)
+        except Conversation.DoesNotExist:
+            return Message.objects.none()
 
-    def create(self, request):
-        serializer = MessageSerializer(data=request.data)
-        if serializer.is_valid():
-            message = serializer.save()
-            return Response(MessageSerializer(message).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if self.request.user not in conversation.participants.all():
+            self.permission_denied(self.request, message="Forbidden", code=status.HTTP_403_FORBIDDEN)
+
+        return Message.objects.filter(conversation=conversation)
