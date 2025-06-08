@@ -1,10 +1,22 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework import permissions
+from .models import Conversation, Message
 
-class IsParticipantOfConversation(BasePermission):
+class IsParticipantOfConversation(permissions.BasePermission):
+    """
+    Permission personnalisée : seuls les participants d'une conversation
+    peuvent accéder ou modifier les messages ou conversations liés.
+    """
+
     def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated  # ✅ Auth check
+        if view.basename == 'conversation':
+            return request.user and request.user.is_authenticated
+        return True
 
     def has_object_permission(self, request, view, obj):
-        if request.method in SAFE_METHODS or request.method in ["PUT", "PATCH", "DELETE"]:  # ✅ méthode check
-            return request.user in obj.participants.all()  # ✅ participant check
+        if isinstance(obj, Conversation):
+            return request.user in obj.participants.all()
+
+        if isinstance(obj, Message):
+            return request.user in obj.conversation.participants.all()
+
         return False
