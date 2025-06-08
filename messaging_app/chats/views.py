@@ -1,44 +1,41 @@
-from rest_framework import viewsets, status
-from rest_framework.request import Request
+from rest_framework import viewsets, status, filters
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
+from .permissions import IsParticipantOfConversation
+from .filters import MessageFilter
 
 
-class ConversationViewSet(viewsets.ViewSet):
-    search_filter =filters.SearchFilter()
+class ConversationViewSet(viewsets.ModelViewSet):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['participants__username']
 
-    def list(self, request: Request):
-        queryset = Conversation.objects.all()
+    def get_queryset(self):
+        user = self.request.user
+        return Conversation.objects.filter(participants=user)
 
-        queryset = self.search_filter.filter_queryset(request, queryset, self)
 
-        serializer = ConversationSerializer(queryset, many=True)
-        return Response(serializer.data)
+class MessageViewSet(viewsets.ModelViewSet):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsParticipantOfConversation]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_class = MessageFilter
+    ordering_fields = ['timestamp']
+    ordering = ['-timestamp']
 
-    def create(self, request):
-        serializer = ConversationSerializer(data=request.data)
+    def get_queryset(self):
+        user = self.request.user
+        return Message.objects.filter(conversation__participants=user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = MessageSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(sender=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class MessageViewSet(viewsets.ViewSet):
-    ordering_filter = filters.OrderingFilter()
-
-    def list(self, request):
-        queryset = Message.objects.all()
-
-        queryset = self.ordering_filter.filter_queryset(request, queryset, self)
-
-        serializer = MessageSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = MessageSerializer(data=request.data)
-        if serializer.is_valid():
-            message = serializer.save()
-            return Response(MessageSerializer(message), status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
