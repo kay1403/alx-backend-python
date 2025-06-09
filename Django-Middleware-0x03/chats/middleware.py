@@ -54,7 +54,7 @@ class OffensiveLanguageMiddleware:
         return self.get_response(request)
 
 
-class RolePermissionMiddleware:  # ✅ Corrigé ici (casse correcte)
+class RolePermissionMiddleware: 
     def __init__(self, get_response):
         print("[Middleware] RolePermissionMiddleware loaded ✅")
         self.get_response = get_response
