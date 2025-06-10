@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
-from .managers import UnreadMessagesManager  # On ajoute le manager personnalisé
+from .managers import UnreadMessagesManager  # Manager personnalisé
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -17,7 +17,11 @@ class Message(models.Model):
     )
 
     edited = models.BooleanField(default=False)
-    read = models.BooleanField(default=False)  # Champ ajouté pour les messages lus/non lus
+    read = models.BooleanField(default=False)  # Champ pour message lu/non lu
+
+    # Champs pour suivi édition
+    edited_at = models.DateTimeField(null=True, blank=True)
+    edited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='edited_messages')
 
     objects = models.Manager()  # Manager par défaut
     unread = UnreadMessagesManager()  # Manager custom pour messages non lus
@@ -46,3 +50,12 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'Notification for {self.user.username} about message {self.message.id}'
+
+class MessageHistory(models.Model):
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='history')
+    old_content = models.TextField()
+    edited_at = models.DateTimeField(auto_now_add=True)
+    edited_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f'Edit history of message {self.message.id} at {self.edited_at}'
