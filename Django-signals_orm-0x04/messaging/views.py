@@ -7,7 +7,6 @@ from django.views.decorators.cache import cache_page
 from .models import Message
 from .forms import MessageReplyForm
 
-
 @login_required
 def threaded_conversation_view(request, message_id):
     # Récupération optimisée du message racine
@@ -58,9 +57,9 @@ def threaded_conversation_view(request, message_id):
 
 
 @login_required
-@cache_page(60)  # Cache la vue 60 secondes
+@cache_page(60)  # Cache 60 secondes
 def unread_messages_view(request):
-    unread_messages = Message.unread.for_user(request.user).only('id', 'sender', 'content', 'timestamp')
+    unread_messages = Message.unread.unread_for_user(request.user)
     return render(request, 'messaging/unread_messages.html', {
         'messages': unread_messages
     })
