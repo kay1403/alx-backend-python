@@ -1,0 +1,17 @@
+<h2>Historique du message</h2>
+
+<p><strong>Message actuel :</strong> {{ message.content }}</p>
+
+{% if history %}
+    <ul>
+        {% for item in history %}
+            <li>
+                Ancienne version : {{ item.old_content }} <br>
+                Modifié par : {{ item.edited_by.username }} <br>
+                À : {{ item.edited_at }}
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>Aucun historique pour ce message.</p>
+{% endif %}
