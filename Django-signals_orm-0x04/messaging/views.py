@@ -1,10 +1,9 @@
-# messaging/views.py
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.contrib import messages
 from .models import Message
-from .forms import MessageReplyForm  # à créer pour saisir la réponse
+from .forms import MessageReplyForm  # à créer
 
 @login_required
 def threaded_conversation_view(request, message_id):
@@ -14,8 +13,7 @@ def threaded_conversation_view(request, message_id):
         id=message_id
     )
 
-    # Vérification d'autorisation simple : 
-    # seul l'expéditeur ou le destinataire peut voir ce thread
+    # Vérification simple d'autorisation
     if request.user != message.sender and request.user != message.receiver:
         return HttpResponseForbidden("Vous n'avez pas la permission de voir cette conversation.")
 
@@ -25,7 +23,6 @@ def threaded_conversation_view(request, message_id):
     if request.method == 'POST':
         form = MessageReplyForm(request.POST)
         if form.is_valid():
-            # Création de la réponse
             reply = form.save(commit=False)
             reply.sender = request.user
             reply.receiver = message.sender if message.sender != request.user else message.receiver
