@@ -3,6 +3,7 @@ from .views import (
     message_history_view,
     MessageHistoryAPIView,
     threaded_conversation_view,
+    unread_messages_view,  # Import de la nouvelle vue
 )
 
 urlpatterns = [
@@ -14,4 +15,7 @@ urlpatterns = [
 
     # Vue pour la conversation en fil de discussion (threaded)
     path('messages/thread/<int:message_id>/', threaded_conversation_view, name='threaded_conversation'),
+
+    # Vue des messages non lus
+    path('messages/unread/', unread_messages_view, name='unread_messages'),
 ]
