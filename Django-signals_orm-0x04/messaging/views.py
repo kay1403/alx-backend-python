@@ -9,9 +9,11 @@ from .forms import MessageReplyForm
 
 @login_required
 def threaded_conversation_view(request, message_id):
-    # Récupération optimisée du message racine
+    # Récupération optimisée du message racine avec seulement les champs nécessaires
     message = get_object_or_404(
-        Message.objects.select_related('sender', 'receiver', 'parent_message'),
+        Message.objects.select_related('sender', 'receiver', 'parent_message').only(
+            'id', 'sender_id', 'receiver_id', 'parent_message_id', 'content', 'timestamp'
+        ),
         id=message_id
     )
 
@@ -19,7 +21,9 @@ def threaded_conversation_view(request, message_id):
         return HttpResponseForbidden("Vous n'avez pas la permission de voir cette conversation.")
 
     def get_thread_recursive(msg):
-        replies = Message.objects.filter(parent_message=msg).select_related('sender', 'receiver').order_by('timestamp')
+        replies = Message.objects.filter(parent_message=msg).select_related('sender', 'receiver').only(
+            'id', 'sender_id', 'receiver_id', 'parent_message_id', 'content', 'timestamp'
+        ).order_by('timestamp')
         thread = []
         for reply in replies:
             thread.append({
@@ -59,7 +63,9 @@ def threaded_conversation_view(request, message_id):
 @login_required
 @cache_page(60)  # Cache 60 secondes
 def unread_messages_view(request):
-    unread_messages = Message.unread.unread_for_user(request.user)
+    unread_messages = Message.unread.unread_for_user(request.user).only(
+        'id', 'sender_id', 'receiver_id', 'content', 'timestamp'
+    )
     return render(request, 'messaging/unread_messages.html', {
         'messages': unread_messages
     })
