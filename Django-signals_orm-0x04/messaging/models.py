@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from .managers import UnreadMessagesManager  # On ajoute le manager personnalisé
 
 class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
@@ -7,7 +8,6 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    # Champ pour les réponses (threading)
     parent_message = models.ForeignKey(
         'self',
         on_delete=models.CASCADE,
@@ -17,7 +17,10 @@ class Message(models.Model):
     )
 
     edited = models.BooleanField(default=False)
-    read = models.BooleanField(default=False)
+    read = models.BooleanField(default=False)  # Champ ajouté pour les messages lus/non lus
+
+    objects = models.Manager()  # Manager par défaut
+    unread = UnreadMessagesManager()  # Manager custom pour messages non lus
 
     def __str__(self):
         return f'Message from {self.sender} to {self.receiver} at {self.timestamp}'
