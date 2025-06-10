@@ -1,6 +1,9 @@
 from rest_framework import viewsets, status, filters
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+
 from .models import Conversation, Message
 from .serializers import ConversationSerializer, MessageSerializer
 from .pagination import MessagePagination
@@ -35,3 +38,10 @@ class MessageViewSet(viewsets.ModelViewSet):
             self.permission_denied(self.request, message="Forbidden", code=status.HTTP_403_FORBIDDEN)
 
         return Message.objects.filter(conversation=conversation)
+
+    @method_decorator(cache_page(60))
+    def list(self, request, *args, **kwargs):
+        """
+        Retourne la liste des messages d'une conversation, mise en cache 60 secondes.
+        """
+        return super().list(request, *args, **kwargs)
