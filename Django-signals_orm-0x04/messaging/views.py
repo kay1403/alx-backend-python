@@ -2,22 +2,20 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.contrib import messages
+from django.contrib.auth import logout
 from .models import Message
 from .forms import MessageReplyForm  # à créer
 
 @login_required
 def threaded_conversation_view(request, message_id):
-    # Récupération du message racine avec optimisation FK
     message = get_object_or_404(
         Message.objects.select_related('sender', 'receiver', 'parent_message'),
         id=message_id
     )
 
-    # Vérification simple d'autorisation
     if request.user != message.sender and request.user != message.receiver:
         return HttpResponseForbidden("Vous n'avez pas la permission de voir cette conversation.")
 
-    # Construction du thread récursif
     thread = message.get_thread()
 
     if request.method == 'POST':
@@ -41,3 +39,13 @@ def threaded_conversation_view(request, message_id):
         'form': form,
     }
     return render(request, 'messaging/threaded_conversation.html', context)
+
+@login_required
+def delete_user(request):
+    user = request.user
+    if request.method == "POST":
+        logout(request)
+        user.delete()
+        messages.success(request, "Votre compte a été supprimé avec succès.")
+        return redirect('home')
+    return render(request, 'messaging/delete_user_confirm.html')
