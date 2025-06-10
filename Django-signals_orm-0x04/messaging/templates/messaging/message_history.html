@@ -1,17 +1,58 @@
-<h2>Historique du message</h2>
+<!-- messaging/templates/messaging/message_history.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Historique du message</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .history-item {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .old-content {
+            font-style: italic;
+            color: #555;
+        }
+        .meta {
+            font-size: 0.9em;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <h1>Historique du message</h1>
 
-<p><strong>Message actuel :</strong> {{ message.content }}</p>
+    <section>
+        <h2>Message actuel :</h2>
+        <p>{{ message.content }}</p>
+    </section>
 
-{% if history %}
-    <ul>
-        {% for item in history %}
-            <li>
-                Ancienne version : {{ item.old_content }} <br>
-                Modifié par : {{ item.edited_by.username }} <br>
-                À : {{ item.edited_at }}
-            </li>
-        {% endfor %}
-    </ul>
-{% else %}
-    <p>Aucun historique pour ce message.</p>
-{% endif %}
+    <section>
+        <h2>Versions précédentes :</h2>
+        {% if history %}
+            <ul>
+                {% for item in history %}
+                    <li class="history-item">
+                        <p class="old-content">« {{ item.old_content }} »</p>
+                        <p class="meta">
+                            Modifié par : {{ item.edited_by.username }} <br />
+                            Le : {{ item.edited_at|date:"d/m/Y H:i:s" }}
+                        </p>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>Aucun historique pour ce message.</p>
+        {% endif %}
+    </section>
+
+    <p><a href="{% url 'some_message_list_view' %}">Retour à la liste des messages</a></p>
+</body>
+</html>
