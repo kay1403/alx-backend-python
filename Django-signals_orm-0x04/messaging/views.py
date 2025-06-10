@@ -13,13 +13,11 @@ def threaded_conversation_view(request, message_id):
         id=message_id
     )
 
-    # Vérification de permission : seul l'expéditeur ou le destinataire peut voir la conversation
     if request.user != message.sender and request.user != message.receiver:
         return HttpResponseForbidden("Vous n'avez pas la permission de voir cette conversation.")
 
-    # Récupération du thread complet avec optimisation (récursif)
     def get_thread_recursive(msg):
-        replies = Message.objects.filter(parent_message=msg).select_related('sender', 'receiver').prefetch_related('replies')
+        replies = Message.objects.filter(parent_message=msg).select_related('sender', 'receiver').order_by('timestamp')
         thread = []
         for reply in replies:
             thread.append({
@@ -30,7 +28,6 @@ def threaded_conversation_view(request, message_id):
 
     thread = get_thread_recursive(message)
 
-    # Traitement du formulaire de réponse
     if request.method == 'POST':
         form = MessageReplyForm(request.POST)
         if form.is_valid():
@@ -55,3 +52,11 @@ def threaded_conversation_view(request, message_id):
         'form': form,
     }
     return render(request, 'messaging/threaded_conversation.html', context)
+
+
+@login_required
+def unread_messages_view(request):
+    unread_messages = Message.unread.for_user(request.user)
+    return render(request, 'messaging/unread_messages.html', {
+        'messages': unread_messages
+    })
