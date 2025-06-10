@@ -1,24 +1,17 @@
-from django.db.models.signals import pre_save
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from .models import Message, MessageHistory
+from django.contrib.auth.models import User
+from .models import Message, Notification, MessageHistory
 
-@receiver(pre_save, sender=Message)
-def track_message_edits(sender, instance, **kwargs):
-    if not instance.pk:
-        return  # Nouveau message → pas besoin d'historique
+@receiver(post_delete, sender=User)
+def delete_related_user_data(sender, instance, **kwargs):
+    # Supprimer les messages envoyés ou reçus
+    Message.objects.filter(sender=instance).delete()
+    Message.objects.filter(receiver=instance).delete()
 
-    try:
-        old_instance = Message.objects.get(pk=instance.pk)
-    except Message.DoesNotExist:
-        return
+    # Supprimer les notifications liées
+    Notification.objects.filter(user=instance).delete()
 
-    # Si le contenu change
-    if old_instance.content != instance.content:
-        # Enregistrer l'ancienne version
-        MessageHistory.objects.create(
-            message=old_instance,
-            old_content=old_instance.content,
-            edited_by=instance.edited_by  # doit être défini dans la vue
-        )
-        # Marquer comme édité
-        instance.edited = True
+    # Supprimer l'historique des messages liés
+    MessageHistory.objects.filter(message__sender=instance).delete()
+    MessageHistory.objects.filter(message__receiver=instance).delete()
