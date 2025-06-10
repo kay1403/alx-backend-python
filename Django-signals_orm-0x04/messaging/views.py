@@ -1,30 +1,46 @@
-from django.shortcuts import render, get_object_or_404
+# messaging/views.py
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponseForbidden
+from django.contrib import messages
+from .models import Message
+from .forms import MessageReplyForm  # à créer pour saisir la réponse
 
-from .models import Message, MessageHistory
-from .serializers import MessageHistorySerializer
-
-# Vue HTML pour afficher l'historique dans une page web
 @login_required
-def message_history_view(request, message_id):
-    message = get_object_or_404(Message, id=message_id)
-    history = MessageHistory.objects.filter(message=message).order_by('-edited_at')
+def threaded_conversation_view(request, message_id):
+    # Récupération du message racine avec optimisation FK
+    message = get_object_or_404(
+        Message.objects.select_related('sender', 'receiver', 'parent_message'),
+        id=message_id
+    )
 
-    return render(request, 'messaging/message_history.html', {
+    # Vérification d'autorisation simple : 
+    # seul l'expéditeur ou le destinataire peut voir ce thread
+    if request.user != message.sender and request.user != message.receiver:
+        return HttpResponseForbidden("Vous n'avez pas la permission de voir cette conversation.")
+
+    # Construction du thread récursif
+    thread = message.get_thread()
+
+    if request.method == 'POST':
+        form = MessageReplyForm(request.POST)
+        if form.is_valid():
+            # Création de la réponse
+            reply = form.save(commit=False)
+            reply.sender = request.user
+            reply.receiver = message.sender if message.sender != request.user else message.receiver
+            reply.parent_message = message
+            reply.save()
+            messages.success(request, "Votre réponse a été envoyée avec succès.")
+            return redirect('threaded_conversation', message_id=message_id)
+        else:
+            messages.error(request, "Erreur dans le formulaire, veuillez corriger.")
+    else:
+        form = MessageReplyForm()
+
+    context = {
         'message': message,
-        'history': history
-    })
-
-# Vue API DRF pour afficher l'historique en JSON
-class MessageHistoryAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, message_id):
-        message = get_object_or_404(Message, id=message_id)
-        history = MessageHistory.objects.filter(message=message).order_by('-edited_at')
-        serializer = MessageHistorySerializer(history, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        'thread': thread,
+        'form': form,
+    }
+    return render(request, 'messaging/threaded_conversation.html', context)
