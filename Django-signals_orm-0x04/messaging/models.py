@@ -7,49 +7,39 @@ class Message(models.Model):
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
 
-    # ✅ Nouveau champ : message modifié ?
-    edited = models.BooleanField(default=False)
-
-    # ✅ Nouveau champ : qui a édité le message ?
-    edited_by = models.ForeignKey(
-        User,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='edited_messages'
-    )
-
-    # ✅ Réponse à un autre message (thread)
+    # Champ pour les réponses (threading)
     parent_message = models.ForeignKey(
         'self',
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
-        on_delete=models.CASCADE,
         related_name='replies'
     )
 
-    # ✅ Message lu ?
+    edited = models.BooleanField(default=False)
     read = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"From {self.sender.username} to {self.receiver.username} at {self.timestamp}"
+        return f'Message from {self.sender} to {self.receiver} at {self.timestamp}'
 
+    def get_thread(self):
+        """
+        Récupère récursivement ce message et toutes ses réponses en structure arborescente.
+        """
+        thread = {
+            'message': self,
+            'replies': []
+        }
+        replies_qs = self.replies.select_related('sender', 'receiver').order_by('timestamp')
+        for reply in replies_qs:
+            thread['replies'].append(reply.get_thread())
+        return thread
 
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='notifications')
-    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Notification for {self.user.username} - Read: {self.read}"
-
-
-class MessageHistory(models.Model):
-    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='history')
-    old_content = models.TextField()
-    edited_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    edited_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"History of message {self.message.id} edited at {self.edited_at}"
+        return f'Notification for {self.user.username} about message {self.message.id}'
