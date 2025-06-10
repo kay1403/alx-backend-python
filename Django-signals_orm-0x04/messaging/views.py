@@ -4,20 +4,35 @@ from django.http import HttpResponseForbidden
 from django.contrib import messages
 from django.contrib.auth import logout
 from .models import Message
-from .forms import MessageReplyForm  # à créer
+from .forms import MessageReplyForm
 
 @login_required
 def threaded_conversation_view(request, message_id):
+    # Récupération du message racine avec optimisation des jointures
     message = get_object_or_404(
-        Message.objects.select_related('sender', 'receiver', 'parent_message'),
+        Message.objects.select_related('sender', 'receiver', 'parent_message')
+                       .prefetch_related('replies__sender', 'replies__receiver'),
         id=message_id
     )
 
+    # Vérification d'autorisation
     if request.user != message.sender and request.user != message.receiver:
         return HttpResponseForbidden("Vous n'avez pas la permission de voir cette conversation.")
 
-    thread = message.get_thread()
+    # Construction récursive du thread
+    def get_thread(msg):
+        replies = Message.objects.filter(parent_message=msg).select_related('sender', 'receiver')
+        thread = []
+        for reply in replies:
+            thread.append({
+                'message': reply,
+                'replies': get_thread(reply)
+            })
+        return thread
 
+    thread = get_thread(message)
+
+    # Gestion du formulaire de réponse
     if request.method == 'POST':
         form = MessageReplyForm(request.POST)
         if form.is_valid():
@@ -39,6 +54,7 @@ def threaded_conversation_view(request, message_id):
         'form': form,
     }
     return render(request, 'messaging/threaded_conversation.html', context)
+
 
 @login_required
 def delete_user(request):
