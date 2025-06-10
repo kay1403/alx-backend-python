@@ -1,16 +1,25 @@
-# messaging/tests.py
-from django.test import TestCase
-from django.contrib.auth.models import User
-from .models import Message, Notification
+# messaging/signals.py
+from django.db.models.signals import post_save, pre_save
+from django.dispatch import receiver
+from .models import Message, Notification, MessageHistory
 
-class MessageSignalTest(TestCase):
-    def test_notification_created_on_message(self):
-        sender = User.objects.create_user(username='sender', password='pass')
-        receiver = User.objects.create_user(username='receiver', password='pass')
+@receiver(post_save, sender=Message)
+def create_notification(sender, instance, created, **kwargs):
+    if created:
+        Notification.objects.create(
+            user=instance.receiver,
+            message=instance
+        )
 
-        msg = Message.objects.create(sender=sender, receiver=receiver, content='Hello!')
-        
-        self.assertEqual(Notification.objects.count(), 1)
-        notif = Notification.objects.first()
-        self.assertEqual(notif.user, receiver)
-        self.assertEqual(notif.message, msg)
+@receiver(pre_save, sender=Message)
+def log_message_edit(sender, instance, **kwargs):
+    if instance.pk:  # message existant
+        try:
+            old_message = Message.objects.get(pk=instance.pk)
+        except Message.DoesNotExist:
+            return  # sécurité
+        if old_message.content != instance.content:
+            MessageHistory.objects.create(
+                message=instance,
+                old_content=old_message.content
+            )
