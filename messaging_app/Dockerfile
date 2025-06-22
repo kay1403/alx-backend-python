@@ -1,19 +1,32 @@
-# base image
-FROM python:3.10
+# Use the official Python runtime image
+FROM python:3.10-slim
 
-# work directory
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Set working directory
 WORKDIR /app
 
-#install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    default-libmysqlclient-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Copy project files
 COPY . .
 
-# django default port.
-EXPOSE 8000 
+# Note: The container should be run with -p 8000:8000 to publish the exposed port
+# Example: docker run -p 8000:8000 messaging_app
 
-# Run the app
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Expose port (default for Django)
+EXPOSE 8000
 
-# "-p"
+# Start Django server (adjust if using gunicorn for production)
+CMD ["python3", "manage.py", "runserver", "0.0.0.0:8000"]
