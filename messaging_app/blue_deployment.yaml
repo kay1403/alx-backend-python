@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: messaging-blue
-        image: your-dockerhub-username/messaging-app:1.0
+        image: your-dockerhub-username/messaging-app:2.0
         ports:
         - containerPort: 8000
