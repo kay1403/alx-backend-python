@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Scale to 3 replicas
+echo "Scaling deployment..."
+kubectl scale deployment messaging-app --replicas=3
+
+# Verify pods
+echo "Verifying pods..."
+kubectl get pods
+
+# Load testing using wrk (adjust your IP if using minikube service tunnel)
+echo "Starting load test..."
+wrk -t2 -c50 -d30s http://$(minikube ip):<your-nodeport-or-ingress-port>
+
+# Monitor resources
+echo "Monitoring resource usage..."
+kubectl top pods
