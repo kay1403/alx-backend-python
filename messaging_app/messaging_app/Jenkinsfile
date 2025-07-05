@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+
+    tools {
+        python 'Python 3'  // configuré via ShiningPanda
+    }
+
+    stages {
+        stage('Clone Repository') {
+            steps {
+                git credentialsId: 'github-creds-id', url: 'https://github.com/YourUser/alx-backend-python.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                dir('messaging_app') {
+                    sh 'python3 -m venv venv'
+                    sh '. venv/bin/activate && pip install -r requirements.txt'
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                dir('messaging_app') {
+                    sh '. venv/bin/activate && pytest --junitxml=test-results.xml'
+                }
+            }
+            post {
+                always {
+                    junit 'messaging_app/test-results.xml'
+                }
+            }
+        }
+    }
+}
