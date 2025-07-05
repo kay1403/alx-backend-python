@@ -1,22 +1,37 @@
 pipeline {
     agent any
 
+    environment {
+        VENV_DIR = 'venv'
+    }
+
     tools {
-        python 'Python 3'  // configuré via ShiningPanda
+        // Si configuré via ShiningPanda ou manuellement
+        python 'Python 3'
     }
 
     stages {
-        stage('Clone Repository') {
+        stage('Print Git Branch') {
             steps {
-                git credentialsId: 'github-creds-id', url: 'https://github.com/YourUser/alx-backend-python.git'
+                sh 'git branch'
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Clone Repository') {
+            steps {
+                git credentialsId: 'github-creds-id', url: 'https://github.com/YourUser/alx-backend-python.git', branch: 'main'
+            }
+        }
+
+        stage('Set Up Python Environment') {
             steps {
                 dir('messaging_app') {
-                    sh 'python3 -m venv venv'
-                    sh '. venv/bin/activate && pip install -r requirements.txt'
+                    sh '''
+                        python3 -m venv ${VENV_DIR}
+                        . ${VENV_DIR}/bin/activate
+                        pip3 install --upgrade pip
+                        pip3 install -r requirements.txt
+                    '''
                 }
             }
         }
@@ -24,12 +39,15 @@ pipeline {
         stage('Run Tests') {
             steps {
                 dir('messaging_app') {
-                    sh '. venv/bin/activate && pytest --junitxml=test-results.xml'
+                    sh '''
+                        . ${VENV_DIR}/bin/activate
+                        pytest --junitxml=pytest-report.xml
+                    '''
                 }
             }
             post {
                 always {
-                    junit 'messaging_app/test-results.xml'
+                    junit 'messaging_app/pytest-report.xml'
                 }
             }
         }
