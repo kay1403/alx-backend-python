@@ -6,8 +6,7 @@ pipeline {
     }
 
     tools {
-        // Si configuré via ShiningPanda ou manuellement
-        python 'Python 3'
+        python 'Python 3' // requis si tu as configuré un interpréteur Python dans Jenkins (ShiningPanda)
     }
 
     stages {
@@ -23,27 +22,23 @@ pipeline {
             }
         }
 
-        stage('Set Up Python Environment') {
+        stage('Install Dependencies') {
             steps {
-                dir('messaging_app') {
-                    sh '''
-                        python3 -m venv ${VENV_DIR}
-                        . ${VENV_DIR}/bin/activate
-                        pip3 install --upgrade pip
-                        pip3 install -r requirements.txt
-                    '''
-                }
+                sh '''
+                    python3 -m venv venv
+                    . venv/bin/activate
+                    pip3 install --upgrade pip
+                    pip3 install -r messaging_app/requirements.txt
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                dir('messaging_app') {
-                    sh '''
-                        . ${VENV_DIR}/bin/activate
-                        pytest --junitxml=pytest-report.xml
-                    '''
-                }
+                sh '''
+                    . venv/bin/activate
+                    pytest messaging_app --junitxml=messaging_app/pytest-report.xml
+                '''
             }
             post {
                 always {
